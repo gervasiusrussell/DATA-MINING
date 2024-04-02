@@ -1,0 +1,57 @@
+---
+title: "ASS1"
+output: html_document
+date: "2024-04-01"
+---
+
+STUDENT MENTAL HEALTH DATASET
+
+SET WORKING DIRECTORY
+```{r}
+setwd("C:/Users/gerva/OneDrive/Documents/BINUS/SEM 2/DATA MINING/tugaskelompok")
+data <- read.csv("Student Mental health.csv")
+```
+REMOVE TIMESTAMP BECAUSE ITS UNNECESSARY
+```{r}
+data <- data[,-which(names(data)=="Timestamp")]
+
+names(data)
+```
+CHANGE COL NAMES TO SIMPLER TERMS
+```{r}
+colnames(data) <- c('Gender','Age','Major','Year_Study','GPA','Marriage','Depression','Anxiety','Panic_Attack','Seek_Treatment')
+```
+
+DELTE "YEAR" FROM THE YEAR_STUDY COLUMN
+```{r}
+data$Year_Study <- gsub("Year", "", data$Year_Study)
+data$Year_Study <- gsub("year", "", data$Year_Study)
+```
+
+
+CHANGE SOME COLUMNS INTO FACTOR
+```{r}
+data[c('Gender','Year_Study','GPA','Marriage','Depression','Anxiety','Panic_Attack','Seek_Treatment')] <- lapply(data[c('Gender','Year_Study','GPA','Marriage','Depression','Anxiety','Panic_Attack','Seek_Treatment')], factor)
+
+str(data)
+```
+CHECK MISSING VALUE
+```{r}
+missing_values <- is.na(data)
+missing_count <- colSums(missing_values)
+print(missing_count)
+```
+FIND MEAN OF AGE TO CHANGE NULL VALUE
+```{r}
+age_mean <- mean(data$Age, na.rm = TRUE)
+data$Age[is.na(data$Age)] <- age_mean
+missing_values <- is.na(data)
+missing_count <- colSums(missing_values)
+print(missing_count)
+```
+FIND UNIQUE VALUE
+```{r}
+unik <- unique(data$Major)
+unik
+```
+
