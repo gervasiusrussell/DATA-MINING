@@ -1,0 +1,293 @@
+---
+title: "GROUP1_DMV"
+output: html_document
+date: "2024-04-01"
+---
+
+# STUDENT MENTAL HEALTH DATASET
+
+GROUP 1:
+HANS ARDIANTA - 2702249663
+GERVASIUS RUSSELL - 2702257450
+KEVIN NATHANAEL HENDARTO - 2702255533
+STEVEN LIEMENTHA - 2702265370
+
+p.s.( all header and information is put above the code line :) )
+
+## DATASET 
+- from https://www.kaggle.com/datasets/shariful07/student-mental-health
+- Attribute and their meaning
+0. Timestamp :                                    Indicate the time they submit their answers                                    
+1. Choose your gender :                           Indicate the gender of the related student
+2. Age :                                          Indicate the age of the related student
+3. What is your course :                          Indicate the program of study taken by the related student
+4. Your current year of study :                   Indicate what year of education the related student is currently in
+5. What is your CGPA :                            Indicate the CGPA data of the related student
+6. Marital status :                               Indicate the marital status of the related student
+7. Do you have depression :                       Indicate whether the related student is experiencing depression
+8. Do you have anxiety :                          Indicate whether the related student is having anxiety problems
+9. Do you have panic attacks :                    Indicate whether the related student has panic problems
+10. Did you seek any specialist for treatment :   Indicate whether the related student has ever undergone medical treatment regarding their mental health
+
+
+## INSTALL AND LOAD PACKAGES NEEDED
+```{r}
+# setwd("C:/Users/gerva/OneDrive/Documents/BINUS/SEM 2/DATA MINING/tugaskelompok")
+data <- read.csv("Student Mental health.csv")
+# install.packages("tidyverse")
+# install.packages("ggplot2")
+library(tidyverse)
+library(ggplot2)
+library(vcd)
+```
+## CHECK FOR DATA ANOMALIES AND DATA TYPES
+- the data$age is right skewed because mean>median
+```{r}
+str(data)
+summary(data)
+```
+## REMOVE TIMESTAMP 
+= BECAUSE ITS UNNECESSARY FOR THE VISUALIZATION STEP
+```{r}
+data <- data[,-which(names(data)=="Timestamp")]
+class(data)
+names(data)
+```
+## CHANGE COL NAMES TO SIMPLER TERMS
+- to shorten the colnames
+```{r}
+colnames(data) <- c('Gender','Age','Major','Year_Study','GPA','Marriage','Depression','Anxiety','Panic_Attack','Seek_Treatment')
+```
+## DELTE "YEAR" FROM THE YEAR_STUDY COLUMN
+- so year study can be a factor
+```{r}
+data$Year_Study <- gsub("Year", "", data$Year_Study)
+data$Year_Study <- gsub("year", "", data$Year_Study)
+```
+## CHANGE THE NECESSARY COLUMNS INTO FACTOR
+= FACTOR IS NEEDED TO HAVE CATEGORICAL HIERARCHY IN OUR DATA (EX: LEVEL 1 = YES LEVEL 2 = NO)
+```{r}
+data[c('Gender','Year_Study','GPA','Marriage','Depression','Anxiety','Panic_Attack','Seek_Treatment')] <- lapply(data[c('Gender','Year_Study','GPA','Marriage','Depression','Anxiety','Panic_Attack','Seek_Treatment')], factor)
+
+str(data)
+```
+## CHECK MISSING VALUE
+-there is one missing age value
+```{r}
+missing_values <- is.na(data)
+missing_count <- colSums(missing_values)
+print(missing_count)
+```
+## FIND MEAN OF AGE TO CHANGE THE NULL VALUE
+= one of the most common ways to change null value is to change it to the mean of the numeric variable
+```{r}
+age_mean <- mean(data$Age, na.rm = TRUE)
+data$Age[is.na(data$Age)] <- age_mean
+missing_values <- is.na(data)
+missing_count <- colSums(missing_values)
+print(missing_count)
+```
+## CHECK UNIQUE VALUE IN MAJOR
+- to find duplicates and typos
+```{r}
+sort(unique(data$Major))
+```
+## CLEAN THE TYPOS AND SIMILLAR NAMING
+-MAKE A DICT OF CORRECTED VALUES
+-MATCH THE DICT WITH ALL THE DATA IN MAJOR COLUMN AND CHANGE IT
+```{r}
+#MAJOR DUPLICATES
+correct_dict <- c("psychology" = "Psychology", "Pendidikan Islam " = "Islamic Education", "Pendidikan islam" = "Islamic Education","Islamic education"="Islamic Education","Pendidikan Islam"="Islamic Education","koe"="Koe","KOE"="Koe","Laws"="Law","KIRKHS"="Kirkhs","Irkhs"="Kirkhs","BENL"="Benl", "Fiqh fatwa "="Fiqh","engin"="Engineering","Engine"="Engineering","Nursing "="Nursing","Usuluddin "="Usuluddin","Human Sciences "="Human Sciences","Diploma Nursing"="Nursing","Communication "="Communication","Accounting "="Accounting")
+
+data$Major <- ifelse(data$Major %in% names(correct_dict), 
+                               correct_dict[data$Major], 
+                               data$Major)
+sort(unique(data$Major))
+
+#GPA DUPLICATES
+unique(data$GPA)
+data$GPA <- trimws(data$GPA)
+unique(data$GPA)
+
+# head(data,n=100)    check
+glimpse(data)
+```
+## SWITCH GENDER LEVELS
+- to switch hierarcy levels
+```{r}
+unique(data$Gender)
+data$Gender <- factor((data$Gender),
+                      levels =   c("Male","Female"))
+unique(data$Gender)
+
+```
+# DATA IS CLEAN AND READY FOR EDA :)
+
+===============================================================================
+
+## FINDING CORELATION AND CAUSATION
+
+## AGE DISTRIBUTION
+- the age distribution is scatered mostly compact in the lowest and highest age
+```{r}
+ggplot(data, aes(x = Age)) +
+  geom_histogram(fill = "cyan", color = "black") +
+  ggtitle("Age distribution") +
+  theme_minimal()
+```
+
+## GENDER AND ANXIETY
+- we see a corelation in genders that have anxiety that less people both male andd female are not anxious.
+```{r}
+ggplot(data, aes(y=Anxiety, fill=Gender)) +
+  geom_bar(position="dodge") +
+  labs(title="Anxiety by Gender") +
+  theme_minimal()
+```
+## Course with most depressed students
+- the most depressed students are enginereeng due to the difficultness of their major
+```{r}
+data_depressed <- data %>% filter(data$Depression== "Yes")
+#TOP Course dengan depresi terbanyak
+top_courses <- head(names(sort(table(data_depressed$Major), decreasing = TRUE)), 18)
+#data dengan dengan course depresi terbanyak
+data_top <- data_depressed[data_depressed$Major %in% top_courses, ]
+data_top
+top_courses
+```
+## Distribution of Depressed Students Across GPA
+- in this barplot we can see that there are more majors that are not depressed than depressed ones ( 10 out of 17 majors)
+```{r}
+# Calculate depression count for each Major range
+depression_counts <- table(data_depressed$Major)
+
+# Convert Major to a factor with levels sorted based on depression count
+data_depressed$Major <- factor(data_depressed$Major, levels = names(sort(depression_counts, decreasing = TRUE)))
+
+# Plot the barplot with sorted Major levels
+ggplot(data = data_depressed, aes(x = Major, fill = Major)) +
+  geom_bar() +
+  labs(title = "Distribution of Depressed Students Across GPA", x = "GPA Range", y = "Depression Count") +
+  theme_minimal() +  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+## Distribution of Depressed Students Across GPA
+- majority are depressed is in the middle section of the gpa range which is 3-3.5. the other ranges in which the 2.5-2.9 students probably took it too easy on their studeies while the high ranked students fall in the 3.5-4 gpa range are just smart that they dont have to worry much.
+```{r}
+#Print unique GPA sekarang
+unique_GPA <- unique(data$GPA)
+unique_GPA
+
+data$GPA <- trimws(data$GPA)
+
+unique_GPA <- unique(data$GPA)
+unique_GPA
+
+data_depressed <- data %>% filter(data$Depression== "Yes")
+# Calculate depression count for each GPA range
+depression_counts <- table(data_depressed$GPA)
+
+# Convert GPA to a factor with levels sorted based on depression count
+data_depressed$GPA <- factor(data_depressed$GPA, levels = names(sort(depression_counts, decreasing = TRUE)))
+
+# Plot the barplot with sorted GPA levels
+ggplot(data = data_depressed, aes(x = GPA, fill = GPA)) +
+  geom_bar() +
+  labs(title = "Distribution of Depressed Students Across GPA", x = "GPA Range", y = "Depression Count") +
+  theme_minimal()
+
+
+```
+## Distribution of Depressed Students Across Age
+-majority of students fall in the range of 18-19 and 23-24 which most students are depressed are first year students that are trying to adapt to new uni life
+
+```{r}
+age_counts <- count(data_depressed, Age)
+selected_age_count <- age_counts %>%
+  filter(n != 0)
+
+selected_age <- unique(selected_age_count$Age)
+selected_age_count
+selected_age
+ggplot(data = selected_age_count, aes(x = Age, y = n)) +
+  geom_bar(stat = "identity", fill = "blue") + 
+  geom_text(aes(label = n), vjust = -0.5, size = 3) 
+  labs(title = "Distribution of Depressed Students Across Age", x = "Age", y = "Count") +
+  scale_x_continuous(breaks = selected_age) +
+  theme_minimal()
+```
+## Distribution of Depressed Students Across Gender
+- The barplot shows that more female student are depressed than the male students. it could show that in this dataset the female are more emotional.
+```{r}
+ggplot(data = data_depressed, aes(x = Gender, fill = Gender)) +
+  geom_bar() +
+  labs(title = "Distribution of Depressed Students Across Gender", x = "Gender", y = "Depression Count") +
+  theme_minimal()
+
+```
+## Number of Students Who Seek Treatment
+- this indicates that even tough students are depressed and have mental health issue they dont seek aany kond of professional treatment that can help them
+```{r}
+ggplot(data = data, aes(x = Seek_Treatment , fill = Seek_Treatment )) +
+  geom_bar() +
+  labs(title = "Number of Students Who Seek Treatment", x = "Status", y = "Seek Treatment Count") +
+  theme_minimal()
+```
+## Distribution of Depressed Students Across Status
+- the ditribution in the barplot conludes that the married students are less depressed due to possible support system from their spouse. the married students are also mentally more stable because of the more experience in handling emotion towards their spouse than the unmarried one
+```{r}
+ggplot(data = data_depressed, aes(x = Marriage, fill = Marriage)) +
+  geom_bar() +
+  labs(title = "Distribution of Depressed Students Across Status", x = "Status", y = "Depression Count") +
+  theme_minimal()
+
+```
+## Association between Year of Study and Depression (Normalized)
+
+- in the fourth year students there are rouhly no depressed student which indicates the last year students have settled and adaptated in their uni life. students are also easily adapting to their uni life if we see the proportion between depressed and niot depressed
+```{r}
+# Create a contingency table
+cont_table <- table(data$Year_Study, data$Depression)
+
+# Normalize the contingency table
+normalized_cont_table <- prop.table(cont_table, margin=1)
+
+normalized_cont_table
+
+# Convert the normalized contingency table to a data frame
+cont_df <- as.data.frame.table(normalized_cont_table)
+
+# Create a ggplot correlation plot using normalized data
+ggplot(cont_df, aes(x = Var1, y = Var2, fill = Freq)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "steelblue", na.value = "white") +
+  theme_minimal() +
+  labs(x = "Study Year", y = "Depression", fill = "Proportion") +
+  ggtitle("Association between Year of Study and Depression (Normalized)")
+
+```
+
+## CONCLUSION
+
+The data analysis reveals that students are facing mental health struggles collectively grouped by their age and gender.
+
+We can see that in the the age of 20-22, students are facing less mental issues. Whereas, in the age of 18-19 and 23 or above they face many more challenges as they are enrolling to a new stage in their life during those age.
+
+The data also reveals that female students are more prone to mental health issues as they are more sensitive and delicate towards their feelings and their thoughts.
+
+In conclusion, it is evident that mental health concerns affect students irrespective of their course of study, year of study, gender, or marital status. The findings underscore the need for targeted support and interventions to address the multifaceted mental health needs of students throughout their academic journey.
+
+==================================================================================
+
+## Recommendation
+
+The data of student mental health gives us a clear picture of how students struggle mentally in their college life. With their own personal conditions such as their age, gender, year of study, major and marietal status can affect their mental health conditions significantly. This data can be a reference to student advisory centers because most of the students are still refusing to seek for treatments. Because in our society, people mostly consider seeking for mental treatments or going to a psychiatrist as some kind of a negative sign or some kind of a taboo.
+
+We must be more open-minded and take mental health seriously. Because an individual's mental health can cause them to do various things according to their own mental health. 
+
+Give more support to the students who are currently in the phase of hard times mentally. If we are facing the issue ourselves we don't need to be ashamed to seek for professional treatments, and also we must seek for a group of positive people around us.
+
+Furthermore, for the people who are just about to attend college, make sure we choose the major that is suitable with our interests. Therefore, we may decline the possibilities of being depressed that is caused by difficulties in our major.
+
+For further research, we suggest a more balanced distribution of data base between various age, gender and year of study to ensure a better quality of data.
+
+At last but not least, prioritizing mental health conditions, and conducting comprehensive analyses are essential steps toward fostering a culture of mental wellness within educational institutions.
